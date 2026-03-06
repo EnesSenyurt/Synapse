@@ -26,6 +26,7 @@ import ToastContainer, { createToast, type ToastMessage } from './components/Toa
 import type { NodeTemplate } from './data/nodeTemplates';
 
 
+
 const STORAGE_KEY = 'synapse-flow-data';
 
 let nodeIdCounter = 0;
