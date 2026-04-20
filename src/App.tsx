@@ -141,6 +141,7 @@ function FlowEditor() {
           description: template.description,
           icon: template.icon,
           config: { ...(template.defaultConfig || {}) },
+          configFields: template.configFields || [],
         },
       };
 

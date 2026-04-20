@@ -1,5 +1,6 @@
 import { X, Trash2 } from 'lucide-react';
 import type { Node } from '@xyflow/react';
+import type { ConfigField } from '../data/nodeTemplates';
 
 interface ConfigPanelProps {
     node: Node;
@@ -11,6 +12,7 @@ interface ConfigPanelProps {
 function ConfigPanel({ node, onClose, onDelete, onUpdate }: ConfigPanelProps) {
     const data = node.data as Record<string, unknown>;
     const config = (data.config as Record<string, string>) || {};
+    const configFields = (data.configFields as ConfigField[]) || [];
     const nodeType = node.type === 'trigger' ? 'Tetikleyici' : 'Eylem';
 
     const handleLabelChange = (value: string) => {
@@ -83,16 +85,50 @@ function ConfigPanel({ node, onClose, onDelete, onUpdate }: ConfigPanelProps) {
                         >
                             Yapılandırma Alanları
                         </div>
-                        {Object.entries(config).map(([key, value]) => (
-                            <div key={key} className="config-field">
-                                <label>{key}</label>
-                                <input
-                                    type="text"
-                                    value={value}
-                                    onChange={(e) => handleConfigChange(key, e.target.value)}
-                                />
-                            </div>
-                        ))}
+                        {configFields.length > 0 ? (
+                            configFields.map((field) => (
+                                <div key={field.key} className="config-field">
+                                    <label>{field.label}</label>
+                                    {field.type === 'select' ? (
+                                        <select
+                                            value={config[field.key] || ''}
+                                            onChange={(e) => handleConfigChange(field.key, e.target.value)}
+                                        >
+                                            <option value="" disabled>Seçiniz...</option>
+                                            {field.options?.map((opt) => (
+                                                <option key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : field.type === 'textarea' ? (
+                                        <textarea
+                                            value={config[field.key] || ''}
+                                            onChange={(e) => handleConfigChange(field.key, e.target.value)}
+                                            placeholder={field.placeholder || ''}
+                                        />
+                                    ) : (
+                                        <input
+                                            type={field.type === 'number' ? 'number' : 'text'}
+                                            value={config[field.key] || ''}
+                                            onChange={(e) => handleConfigChange(field.key, e.target.value)}
+                                            placeholder={field.placeholder || ''}
+                                        />
+                                    )}
+                                </div>
+                            ))
+                        ) : (
+                            Object.entries(config).map(([key, value]) => (
+                                <div key={key} className="config-field">
+                                    <label>{key}</label>
+                                    <input
+                                        type="text"
+                                        value={value}
+                                        onChange={(e) => handleConfigChange(key, e.target.value)}
+                                    />
+                                </div>
+                            ))
+                        )}
                     </>
                 )}
             </div>
