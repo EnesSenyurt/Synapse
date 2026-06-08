@@ -7,7 +7,7 @@ import {
   type Node,
   type XYPosition,
 } from '@xyflow/react';
-import { isValidConnection } from '../utils/dagUtils';
+import { isValidConnection } from '@synapse/shared';
 import type { NodeTemplate } from '../data/nodeTemplates';
 import type { AddToast } from './useToasts';
 

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { Edge, FitViewOptions, Node } from '@xyflow/react';
-import { validateDAG } from '../utils/dagUtils';
+import { validateDAG } from '@synapse/shared';
 import type { AddToast } from './useToasts';
 
 interface UseToolbarActionsArgs {
@@ -10,8 +10,8 @@ interface UseToolbarActionsArgs {
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
   setSelectedNode: React.Dispatch<React.SetStateAction<Node | null>>;
   addToast: AddToast;
-  storageSave: () => void;
-  storageClear: () => void;
+  storageSave: () => Promise<void>;
+  storageClear: () => Promise<void>;
   fitView: (options?: FitViewOptions) => Promise<boolean>;
 }
 
@@ -26,9 +26,14 @@ export function useToolbarActions({
   storageClear,
   fitView,
 }: UseToolbarActionsArgs) {
-  const handleSave = useCallback(() => {
-    storageSave();
-    addToast('success', 'Senaryo kaydedildi!');
+  const handleSave = useCallback(async () => {
+    try {
+      await storageSave();
+      addToast('success', 'Senaryo kaydedildi!');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Bilinmeyen hata';
+      addToast('error', `Kayıt başarısız: ${msg}`);
+    }
   }, [storageSave, addToast]);
 
   const handleValidate = useCallback(() => {
@@ -43,12 +48,17 @@ export function useToolbarActions({
     }
   }, [nodes, edges, addToast]);
 
-  const handleClear = useCallback(() => {
+  const handleClear = useCallback(async () => {
     setNodes([]);
     setEdges([]);
     setSelectedNode(null);
-    storageClear();
-    addToast('info', 'Tüm düğümler temizlendi');
+    try {
+      await storageClear();
+      addToast('info', 'Tüm düğümler temizlendi');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Bilinmeyen hata';
+      addToast('error', `Temizleme başarısız: ${msg}`);
+    }
   }, [setNodes, setEdges, setSelectedNode, storageClear, addToast]);
 
   const handleFitView = useCallback(() => {

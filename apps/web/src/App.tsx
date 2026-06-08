@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   ReactFlow,
   useNodesState,
@@ -9,6 +9,7 @@ import {
   BackgroundVariant,
   useReactFlow,
   ReactFlowProvider,
+  type Edge,
   type Node,
   MarkerType,
 } from '@xyflow/react';
@@ -19,7 +20,7 @@ import Sidebar from './components/Sidebar';
 import Toolbar from './components/Toolbar';
 import ConfigPanel from './components/ConfigPanel';
 import ToastContainer from './components/Toast';
-import { loadFromStorage, useFlowStorage } from './hooks/useFlowStorage';
+import { useFlowApi } from './hooks/useFlowApi';
 import { useToasts } from './hooks/useToasts';
 import { useFlowHandlers } from './hooks/useFlowHandlers';
 import { useToolbarActions } from './hooks/useToolbarActions';
@@ -36,15 +37,30 @@ const defaultEdgeOptions = {
 };
 
 function FlowEditor() {
-  const saved = useMemo(() => loadFromStorage(), []);
-  const [nodes, setNodes, onNodesChange] = useNodesState(saved?.nodes || []);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(saved?.edges || []);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { fitView, screenToFlowPosition } = useReactFlow();
 
-  const { save: storageSave, clear: storageClear } = useFlowStorage(nodes, edges);
+  const flowApi = useFlowApi();
   const { toasts, addToast, removeToast } = useToasts();
+
+  useEffect(() => {
+    if (flowApi.ready && flowApi.flowId) {
+      setNodes(flowApi.initialNodes);
+      setEdges(flowApi.initialEdges);
+    }
+  }, [flowApi.ready, flowApi.flowId, flowApi.initialNodes, flowApi.initialEdges, setNodes, setEdges]);
+
+  useEffect(() => {
+    if (flowApi.ready && flowApi.error) {
+      addToast('error', `API hatası: ${flowApi.error}`);
+    }
+  }, [flowApi.ready, flowApi.error, addToast]);
+
+  const storageSave = useCallback(() => flowApi.save(nodes, edges), [flowApi, nodes, edges]);
+  const storageClear = useCallback(() => flowApi.clear(), [flowApi]);
 
   const {
     onConnect,
