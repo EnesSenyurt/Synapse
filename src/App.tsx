@@ -24,17 +24,13 @@ import Toolbar from './components/Toolbar';
 import ConfigPanel from './components/ConfigPanel';
 import ToastContainer, { createToast, type ToastMessage } from './components/Toast';
 import type { NodeTemplate } from './data/nodeTemplates';
-
-
-
-const STORAGE_KEY = 'synapse-flow-data';
+import { loadFromStorage, useFlowStorage } from './hooks/useFlowStorage';
 
 let nodeIdCounter = 0;
 function getNodeId() {
   return `node_${++nodeIdCounter}_${Date.now()}`;
 }
 
-// Bağlantı çizgilerinin görünümü
 const defaultEdgeOptions = {
   animated: true,
   style: { stroke: 'rgba(139, 92, 246, 0.5)', strokeWidth: 2 },
@@ -46,24 +42,11 @@ const defaultEdgeOptions = {
   },
 };
 
-// Kaydedilmiş bir senaryo varsa sessionStorage'dan geri yükleme.
-function loadFromStorage(): { nodes: Node[]; edges: Edge[] } | null {
-  try {
-    const data = sessionStorage.getItem(STORAGE_KEY);
-    if (data) {
-      const parsed = JSON.parse(data);
-      if (parsed.nodes && parsed.edges) return parsed;
-    }
-  } catch {
-    // görmezden gel
-  }
-  return null;
-}
-
 function FlowEditor() {
   const saved = useMemo(() => loadFromStorage(), []);
   const [nodes, setNodes, onNodesChange] = useNodesState(saved?.nodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(saved?.edges || []);
+  const { save: storageSave, clear: storageClear } = useFlowStorage(nodes, edges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -190,10 +173,9 @@ function FlowEditor() {
 
   // Üst çubuk butonları
   const handleSave = useCallback(() => {
-    const data = { nodes, edges };
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    storageSave();
     addToast('success', 'Senaryo kaydedildi!');
-  }, [nodes, edges, addToast]);
+  }, [storageSave, addToast]);
 
   const handleValidate = useCallback(() => {
     const result = validateDAG(nodes, edges);
@@ -211,9 +193,9 @@ function FlowEditor() {
     setNodes([]);
     setEdges([]);
     setSelectedNode(null);
-    sessionStorage.removeItem(STORAGE_KEY);
+    storageClear();
     addToast('info', 'Tüm düğümler temizlendi');
-  }, [setNodes, setEdges, addToast]);
+  }, [setNodes, setEdges, storageClear, addToast]);
 
   const handleFitView = useCallback(() => {
     fitView({ padding: 0.2, duration: 500 });
