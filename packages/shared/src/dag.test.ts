@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import type { Node, Edge, Connection } from '@xyflow/react';
-import { wouldCreateCycle, isValidConnection, validateDAG, topologicalSort } from './dagUtils';
+import { wouldCreateCycle, isValidConnection, validateDAG, topologicalSort } from './dag.js';
+import type { GraphConnection, GraphEdge } from './types.js';
 
-const n = (id: string): Node => ({ id, position: { x: 0, y: 0 }, data: {} });
-const e = (source: string, target: string): Edge => ({ id: `${source}-${target}`, source, target });
-const conn = (source: string, target: string): Connection => ({ source, target, sourceHandle: null, targetHandle: null });
+const n = (id: string) => ({ id });
+const e = (source: string, target: string): GraphEdge => ({ id: `${source}-${target}`, source, target });
+const conn = (source: string, target: string): GraphConnection => ({ source, target });
 
 // ─── wouldCreateCycle ────────────────────────────────────────────────────────
 

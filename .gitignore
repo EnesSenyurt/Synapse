@@ -12,6 +12,18 @@ dist
 dist-ssr
 *.local
 
+# Env files (per-app)
+.env
+!.env.example
+
+# Prisma local DBs
+**/prisma/*.db
+**/prisma/*.db-journal
+**/prisma/migrations/**/migration_lock.toml
+
+# TS build info
+*.tsbuildinfo
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
