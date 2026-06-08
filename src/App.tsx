@@ -1,7 +1,6 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   ReactFlow,
-  addEdge,
   useNodesState,
   useEdgesState,
   Controls,
@@ -10,26 +9,20 @@ import {
   BackgroundVariant,
   useReactFlow,
   ReactFlowProvider,
-  type Connection,
-  type Edge,
   type Node,
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import { nodeTypes } from './nodes/nodeTypes';
-import { isValidConnection, validateDAG } from './utils/dagUtils';
 import Sidebar from './components/Sidebar';
 import Toolbar from './components/Toolbar';
 import ConfigPanel from './components/ConfigPanel';
-import ToastContainer, { createToast, type ToastMessage } from './components/Toast';
-import type { NodeTemplate } from './data/nodeTemplates';
+import ToastContainer from './components/Toast';
 import { loadFromStorage, useFlowStorage } from './hooks/useFlowStorage';
-
-let nodeIdCounter = 0;
-function getNodeId() {
-  return `node_${++nodeIdCounter}_${Date.now()}`;
-}
+import { useToasts } from './hooks/useToasts';
+import { useFlowHandlers } from './hooks/useFlowHandlers';
+import { useToolbarActions } from './hooks/useToolbarActions';
 
 const defaultEdgeOptions = {
   animated: true,
@@ -46,172 +39,44 @@ function FlowEditor() {
   const saved = useMemo(() => loadFromStorage(), []);
   const [nodes, setNodes, onNodesChange] = useNodesState(saved?.nodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(saved?.edges || []);
-  const { save: storageSave, clear: storageClear } = useFlowStorage(nodes, edges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { fitView, screenToFlowPosition } = useReactFlow();
 
-  const addToast = useCallback((type: ToastMessage['type'], message: string) => {
-    setToasts((prev) => [...prev, createToast(type, message)]);
-  }, []);
+  const { save: storageSave, clear: storageClear } = useFlowStorage(nodes, edges);
+  const { toasts, addToast, removeToast } = useToasts();
 
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+  const {
+    onConnect,
+    handleIsValidConnection,
+    onDragOver,
+    onDrop,
+    onNodeClick,
+    onPaneClick,
+    handleNodeUpdate,
+    handleNodeDelete,
+  } = useFlowHandlers({
+    nodes,
+    edges,
+    setNodes,
+    setEdges,
+    setSelectedNode,
+    addToast,
+    screenToFlowPosition,
+  });
 
-  // döngü kontrolü
-  const onConnect = useCallback(
-    (connection: Connection) => {
-      if (!isValidConnection(connection, nodes, edges)) {
-        addToast('error', 'Bu bağlantı döngü oluşturur veya geçersizdir!');
-        return;
-      }
-      setEdges((eds) =>
-        addEdge(
-          {
-            ...connection,
-            animated: true,
-            style: { stroke: 'rgba(139, 92, 246, 0.5)', strokeWidth: 2 },
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-              color: 'rgba(139, 92, 246, 0.7)',
-              width: 20,
-              height: 20,
-            },
-          },
-          eds
-        )
-      );
-      addToast('success', 'Bağlantı oluşturuldu');
-    },
-    [nodes, edges, setEdges, addToast]
-  );
-
-  // bağlantı kontrolü
-  const handleIsValidConnection = useCallback(
-    (connection: Connection | Edge) => {
-      return isValidConnection(connection as Connection, nodes, edges);
-    },
-    [nodes, edges]
-  );
-
-
-  const onDragOver = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-  }, []);
-
-  const onDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault();
-
-      const templateStr = event.dataTransfer.getData('application/synapse-node');
-      if (!templateStr) return;
-
-      const template: NodeTemplate = JSON.parse(templateStr);
-      const position = screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      });
-
-      const newNode: Node = {
-        id: getNodeId(),
-        type: template.type,
-        position,
-        data: {
-          label: template.label,
-          description: template.description,
-          icon: template.icon,
-          config: { ...(template.defaultConfig || {}) },
-          configFields: template.configFields || [],
-        },
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      addToast('info', `${template.label} düğümü eklendi`);
-    },
-    [screenToFlowPosition, setNodes, addToast]
-  );
-
-
-  const onNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
-      setSelectedNode(node);
-    },
-    []
-  );
-
-  const onPaneClick = useCallback(() => {
-    setSelectedNode(null);
-  }, []);
-
-
-  const handleNodeUpdate = useCallback(
-    (nodeId: string, data: Record<string, unknown>) => {
-      setNodes((nds) =>
-        nds.map((n) => (n.id === nodeId ? { ...n, data: { ...data } } : n))
-      );
-      setSelectedNode((prev) =>
-        prev && prev.id === nodeId ? { ...prev, data: { ...data } } : prev
-      );
-    },
-    [setNodes]
-  );
-
-  const handleNodeDelete = useCallback(
-    (nodeId: string) => {
-      setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-      setEdges((eds) =>
-        eds.filter((e) => e.source !== nodeId && e.target !== nodeId)
-      );
-      setSelectedNode(null);
-      addToast('info', 'Düğüm silindi');
-    },
-    [setNodes, setEdges, addToast]
-  );
-
-  // Üst çubuk butonları
-  const handleSave = useCallback(() => {
-    storageSave();
-    addToast('success', 'Senaryo kaydedildi!');
-  }, [storageSave, addToast]);
-
-  const handleValidate = useCallback(() => {
-    const result = validateDAG(nodes, edges);
-    if (result.valid) {
-      addToast('success', result.message);
-      if (result.order) {
-        console.log('Topolojik Sıralama:', result.order);
-      }
-    } else {
-      addToast('error', result.message);
-    }
-  }, [nodes, edges, addToast]);
-
-  const handleClear = useCallback(() => {
-    setNodes([]);
-    setEdges([]);
-    setSelectedNode(null);
-    storageClear();
-    addToast('info', 'Tüm düğümler temizlendi');
-  }, [setNodes, setEdges, storageClear, addToast]);
-
-  const handleFitView = useCallback(() => {
-    fitView({ padding: 0.2, duration: 500 });
-  }, [fitView]);
-
-  const handleExport = useCallback(() => {
-    const data = JSON.stringify({ nodes, edges }, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'synapse-scenario.json';
-    a.click();
-    URL.revokeObjectURL(url);
-    addToast('success', 'Senaryo JSON olarak dışa aktarıldı');
-  }, [nodes, edges, addToast]);
+  const { handleSave, handleValidate, handleClear, handleFitView, handleExport } =
+    useToolbarActions({
+      nodes,
+      edges,
+      setNodes,
+      setEdges,
+      setSelectedNode,
+      addToast,
+      storageSave,
+      storageClear,
+      fitView,
+    });
 
   return (
     <div className="app-container">
@@ -232,8 +97,7 @@ function FlowEditor() {
               <div className="empty-state-icon">⚡</div>
               <h3>Senaryo Oluşturun</h3>
               <p>
-                Sol panelden tetikleyici ve eylem düğümlerini
-                sürükleyip bu alana bırakın.
+                Sol panelden tetikleyici ve eylem düğümlerini sürükleyip bu alana bırakın.
               </p>
             </div>
           )}
@@ -256,13 +120,9 @@ function FlowEditor() {
           >
             <Controls />
             <MiniMap
-              nodeColor={(node) =>
-                node.type === 'trigger' ? '#f59e0b' : '#8b5cf6'
-              }
+              nodeColor={(node) => (node.type === 'trigger' ? '#f59e0b' : '#8b5cf6')}
               maskColor="rgba(10, 10, 20, 0.8)"
-              style={{
-                backgroundColor: 'rgba(18, 18, 35, 0.85)',
-              }}
+              style={{ backgroundColor: 'rgba(18, 18, 35, 0.85)' }}
             />
             <Background
               variant={BackgroundVariant.Dots}
