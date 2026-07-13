@@ -29,7 +29,7 @@ app.add_middleware(
 class ParseRequest(BaseModel):
     """Request body for POST /parse-task."""
 
-    description: str = Field(min_length=1, description="Natural-language goal to decompose.")
+    description: str = Field(description="Natural-language goal to decompose.")
 
 
 @app.get("/health")

@@ -24,6 +24,12 @@ dist-ssr
 # TS build info
 *.tsbuildinfo
 
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

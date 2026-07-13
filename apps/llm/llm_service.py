@@ -12,7 +12,7 @@ from google.genai import types
 
 from models import ParseResponse
 
-MODEL_NAME = "gemini-2.5-flash"
+MODEL_NAME = "gemini-flash-latest"
 
 SYSTEM_INSTRUCTION = """You are a task decomposition assistant.
 
